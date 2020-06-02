@@ -1,4 +1,5 @@
 const fs = require('fs')
+const nativeExec = require('child_process').exec
 const { program } = require('commander')
 const prompts = require('prompts')
 
@@ -13,6 +14,18 @@ const shouldContinue = async () => {
     process.exit()
   }
   return Promise.resolve()
+}
+
+const exec = async (command) => {
+  return new Promise((resolve, reject) => {
+    nativeExec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(error)
+        reject(stderr)
+      }
+      resolve(stdout)
+    })
+  })
 }
 
 ;(async () => {
@@ -33,6 +46,7 @@ const shouldContinue = async () => {
     )
 
   program.parse(process.argv)
+  const errors = {}
 
   const directoryContent = await fs.readdirSync(program.input)
   const films = program.limit ? directoryContent.splice(0, program.limit) : directoryContent
@@ -40,8 +54,24 @@ const shouldContinue = async () => {
 
   await shouldContinue()
 
+  const tempDirectory = await fs.mkdtempSync(`${program.output}/temp-`)
+
   for (film of films) {
     console.log(`⚙️ Converting ${film}`)
-    const videoTsFolder = `${program.input}/${film}/VIDEO_TS`
+    const videoTsFolder = `${program.input}/${film}/VIDEO_TS`.replace(/(\s+)/g, '\\$1')
+
+    try {
+      await exec(`${program.command} --debug --progress=-stdout mkv file:${videoTsFolder} all ${tempDirectory}`)
+    } catch (e) {
+      errors[film] = e
+    }
   }
+
+  console.log('✅ Done!')
+
+  if (Object.keys(errors)) {
+    console.log(`🔥 There were some errors: ${JSON.stringify(errors)}`)
+  }
+
+  // fs.rmdirSync(tempDirectory)
 })()
