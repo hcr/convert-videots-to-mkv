@@ -1,5 +1,19 @@
 const fs = require('fs')
 const { program } = require('commander')
+const prompts = require('prompts')
+
+const shouldContinue = async () => {
+  const result = await prompts({
+    type: 'confirm',
+    name: 'continue',
+    initial: false,
+    message: 'Do you want to continue?',
+  })
+  if (!result.continue) {
+    process.exit()
+  }
+  return Promise.resolve()
+}
 
 ;(async () => {
   program
@@ -23,6 +37,8 @@ const { program } = require('commander')
   const directoryContent = await fs.readdirSync(program.input)
   const films = program.limit ? directoryContent.splice(0, program.limit) : directoryContent
   console.log(`🎬 Found these films: ${films.join(', ')}`)
+
+  await shouldContinue()
 
   for (film of films) {
     console.log(`⚙️ Converting ${film}`)

@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "commander": "^5.1.0",
-    "prompt": "^1.0.0"
+    "prompts": "^2.3.2"
   },
   "devDependencies": {
     "husky": "^4.2.5",
