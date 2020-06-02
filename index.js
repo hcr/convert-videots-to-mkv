@@ -46,7 +46,7 @@ const exec = async (command) => {
     )
 
   program.parse(process.argv)
-  const errors = {}
+  const errors = []
 
   const directoryContent = await fs.readdirSync(program.input)
   const films = program.limit ? directoryContent.splice(0, program.limit) : directoryContent
@@ -54,24 +54,32 @@ const exec = async (command) => {
 
   await shouldContinue()
 
-  const tempDirectory = await fs.mkdtempSync(`${program.output}/temp-`)
-
   for (film of films) {
     console.log(`⚙️ Converting ${film}`)
-    const videoTsFolder = `${program.input}/${film}/VIDEO_TS`.replace(/(\s+)/g, '\\$1')
+    const input = `${program.input}/${film}/VIDEO_TS`.replace(/(\s+)/g, '\\$1')
+    await fs.mkdirSync(`${program.output}/temps`, { recursive: true })
+    const tempOutput = await fs.mkdtempSync(`${program.output}/temps/temp-`)
 
     try {
-      await exec(`${program.command} --debug --progress=-stdout mkv file:${videoTsFolder} all ${tempDirectory}`)
+      await exec(`${program.command} --debug --progress=-stdout mkv file:${input} all ${tempOutput}`)
+
+      const resultContent = await fs.readdirSync(tempOutput)
+      if (resultContent.length === 1) {
+        fs.renameSync(`${tempOutput}/${resultContent[0]}`, `${program.output}/${film}.mkv`)
+      } else {
+        await fs.mkdirSync(`${program.output}/${film}`, { recursive: true })
+        for (let i = 0; i < resultContent.length; i++) {
+          fs.renameSync(`${tempOutput}/${resultContent[i]}`, `${program.output}/${film}/${film}-${i}.mkv`)
+        }
+      }
     } catch (e) {
-      errors[film] = e
+      errors.push(film)
     }
   }
 
   console.log('✅ Done!')
 
   if (Object.keys(errors)) {
-    console.log(`🔥 There were some errors: ${JSON.stringify(errors)}`)
+    console.log(`🔥 There were some errors for these films: ${errors.join(', ')}`)
   }
-
-  // fs.rmdirSync(tempDirectory)
 })()
