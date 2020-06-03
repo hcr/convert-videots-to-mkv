@@ -2,6 +2,7 @@ const fs = require('fs')
 const nativeExec = require('child_process').exec
 const { program } = require('commander')
 const prompts = require('prompts')
+const winston = require('winston')
 
 const shouldContinue = async () => {
   const result = await prompts({
@@ -16,11 +17,11 @@ const shouldContinue = async () => {
   return Promise.resolve()
 }
 
-const exec = async (command) => {
+const exec = async (command, logger) => {
   return new Promise((resolve, reject) => {
     nativeExec(command, (error, stdout, stderr) => {
       if (error) {
-        console.error(error)
+        logger.error(error)
         reject(stderr)
       }
       resolve(stdout)
@@ -44,24 +45,30 @@ const exec = async (command) => {
       'Location of the makemkvcon command',
       '/Applications/MakeMKV.app/Contents/MacOS/makemkvcon',
     )
-
   program.parse(process.argv)
+
+  const logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.simple(),
+    transports: [new winston.transports.Console(), new winston.transports.File({ filename: 'log.log' })],
+  })
+
   const errors = []
 
   const directoryContent = (await fs.readdirSync(program.input)).filter((item) => !item.startsWith('.'))
   const films = program.limit ? directoryContent.splice(0, program.limit) : directoryContent
-  console.log(`🎬 Found these films: ${films.join(', ')}`)
+  logger.info(`🎬 Found these films: ${films.join(', ')}`)
 
   await shouldContinue()
 
   for (film of films) {
-    console.log(`⚙️ Converting ${film}`)
+    logger.info(`⚙️ Converting ${film}`)
     const input = `${program.input}/${film}/VIDEO_TS`
     await fs.mkdirSync(`${program.output}/temps`, { recursive: true })
     const tempOutput = await fs.mkdtempSync(`${program.output}/temps/temp-`)
 
     try {
-      await exec(`${program.command} mkv file:"${input}" all "${tempOutput}"`)
+      await exec(`${program.command} mkv file:"${input}" all "${tempOutput}"`, logger)
 
       const resultContent = await fs.readdirSync(tempOutput)
       if (resultContent.length === 1) {
@@ -77,9 +84,9 @@ const exec = async (command) => {
     }
   }
 
-  console.log('✅ Done!')
+  logger.info('✅ Done!')
 
   if (errors.length > 0) {
-    console.log(`🔥 There were some errors for these films: ${errors.join(', ')}`)
+    logger.info(`🔥 There were some errors for these films: ${errors.join(', ')}`)
   }
 })()
