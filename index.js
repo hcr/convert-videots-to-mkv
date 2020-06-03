@@ -56,12 +56,12 @@ const exec = async (command) => {
 
   for (film of films) {
     console.log(`⚙️ Converting ${film}`)
-    const input = `${program.input}/${film}/VIDEO_TS`.replace(/(\s+|\(|\))/g, '\\$1')
+    const input = `${program.input}/${film}/VIDEO_TS`
     await fs.mkdirSync(`${program.output}/temps`, { recursive: true })
     const tempOutput = await fs.mkdtempSync(`${program.output}/temps/temp-`)
 
     try {
-      await exec(`${program.command} mkv file:${input} all ${tempOutput}`)
+      await exec(`${program.command} mkv file:"${input}" all "${tempOutput}"`)
 
       const resultContent = await fs.readdirSync(tempOutput)
       if (resultContent.length === 1) {
