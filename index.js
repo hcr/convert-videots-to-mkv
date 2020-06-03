@@ -48,7 +48,7 @@ const exec = async (command) => {
   program.parse(process.argv)
   const errors = []
 
-  const directoryContent = await fs.readdirSync(program.input)
+  const directoryContent = (await fs.readdirSync(program.input)).filter((item) => !item.startsWith('.'))
   const films = program.limit ? directoryContent.splice(0, program.limit) : directoryContent
   console.log(`🎬 Found these films: ${films.join(', ')}`)
 
@@ -56,12 +56,12 @@ const exec = async (command) => {
 
   for (film of films) {
     console.log(`⚙️ Converting ${film}`)
-    const input = `${program.input}/${film}/VIDEO_TS`.replace(/(\s+)/g, '\\$1')
+    const input = `${program.input}/${film}/VIDEO_TS`.replace(/(\s+|\(|\))/g, '\\$1')
     await fs.mkdirSync(`${program.output}/temps`, { recursive: true })
     const tempOutput = await fs.mkdtempSync(`${program.output}/temps/temp-`)
 
     try {
-      await exec(`${program.command} --debug --progress=-stdout mkv file:${input} all ${tempOutput}`)
+      await exec(`${program.command} mkv file:${input} all ${tempOutput}`)
 
       const resultContent = await fs.readdirSync(tempOutput)
       if (resultContent.length === 1) {
@@ -79,7 +79,7 @@ const exec = async (command) => {
 
   console.log('✅ Done!')
 
-  if (Object.keys(errors)) {
+  if (errors.length > 0) {
     console.log(`🔥 There were some errors for these films: ${errors.join(', ')}`)
   }
 })()
